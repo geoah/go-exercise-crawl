@@ -12,7 +12,9 @@ import (
 
 func main() {
 	cl := &http.Client{}
-	cr := crawler.New(cl)
+	fe := crawler.NewFetcherHTTP(cl, 5)
+	pa := crawler.NewParserHTML(false)
+	cr := crawler.New(fe, pa)
 
 	count := 0
 	now := time.Now()

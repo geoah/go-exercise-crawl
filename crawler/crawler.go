@@ -2,12 +2,7 @@ package crawler
 
 import (
 	"errors"
-	"net/http"
-	"net/url"
 	"runtime"
-
-	"golang.org/x/net/html"
-	"golang.org/x/net/html/atom"
 )
 
 var (
@@ -19,15 +14,16 @@ var (
 
 // Crawler is basically an HTTP scraper
 type Crawler struct {
-	client     *http.Client
+	fetcher    Fetcher
+	parser     Parser
 	maxRetries int
 }
 
 // New creates a new Crawler from an HTTP client.
-func New(client *http.Client) *Crawler {
+func New(fetcher Fetcher, parser Parser) *Crawler {
 	return &Crawler{
-		client:     client,
-		maxRetries: 5,
+		fetcher: fetcher,
+		parser:  parser,
 	}
 }
 
@@ -52,7 +48,7 @@ func (c *Crawler) Crawl(targetURL string, workers int) (*Result, error) {
 
 	// start our workers
 	for w := 1; w <= workers; w++ {
-		go c.worker(w, result)
+		go c.worker(result)
 	}
 
 	// when all is said and done, close everything up
@@ -65,138 +61,32 @@ func (c *Crawler) Crawl(targetURL string, workers int) (*Result, error) {
 	return result, nil
 }
 
-func (c *Crawler) worker(id int, result *Result) {
+func (c *Crawler) worker(result *Result) {
 	for target := range result.queue {
 		go func(target *Target, result *Result) {
-			// process the target
-			c.process(target)
-			// if the url could not be processes and we can still retry
-			if target.err != nil && target.tries < c.maxRetries {
-				// re-add it to the end of the queue
-				result.Add(1)
-				result.queue <- target
+			defer result.Done()
+			// fetch body of target
+			body, err := c.fetcher.Fetch(target)
+			if err != nil {
+				// check if we should retry
+				if ferr, ok := err.(FetcherError); ok && ferr.ShouldRetry() {
+					// and if so, re-add it to the end of the queue
+					result.Add(1)
+					result.queue <- target
+					return
+				}
+				// else just push it to targets
+				result.targets <- target
+				return
 			}
-			// if there is no error we can go through the found links and
-			// queue them for further processing
-			if target.err == nil {
+			// and parse it
+			if err = c.parser.Parse(target, body); err == nil {
+				// if there are links add them to the queue
 				for _, ntarget := range target.GetLinkURLs(true) {
 					result.Enqueue(ntarget)
 				}
 			}
 			result.targets <- target
-			result.Done()
 		}(target, result)
 	}
-}
-
-// process will try to get a target URL, parse it's body, and find all links and assets
-// contained in the page. If something goes wrong it will populate the target's error.
-func (c *Crawler) process(target *Target) {
-	// bump tries and remove error
-	target.tries++
-	target.err = nil
-
-	// construct and make our HTTP request
-	req, err := http.NewRequest("GET", target.url.String(), nil)
-	if err != nil {
-		target.err = err
-		return
-	}
-	resp, err := c.client.Do(req)
-	if err != nil {
-		target.err = err
-		return
-	}
-	// make sure to close body when all is done
-	defer resp.Body.Close()
-
-	// TODO(geoah) Handle other HTTP codes a bit more generically; eg 2xx, 4xx, 5xx
-	// TODO(geoah) Handling 429 (too-many-requests) errors specially would also be nice
-	// figure out if we need to parse the page or return an error
-	switch resp.StatusCode {
-	case http.StatusNoContent:
-		// if there is no content, just return
-		return
-	case http.StatusNotFound,
-		http.StatusUnauthorized,
-		http.StatusBadRequest:
-		// don't retry and just return an error
-		// TODO(geoah) Maybe return a new ErrPageNotExist error
-		target.tries = c.maxRetries + 1
-		target.err = ErrFetchingPage
-		return
-	case http.StatusInternalServerError,
-		http.StatusTooManyRequests:
-		// return error but allow retry
-		target.err = ErrFetchingPage
-		return
-	}
-
-	// find out our location from headers as we might have been redirected
-	loc, err := resp.Location()
-	if err != nil {
-		// if we can't we can always fall back to the original target
-		loc = target.url
-	}
-
-	// since we managed to get this far, clean the error
-	target.err = nil
-
-	// and we can now start going through our response body
-	doc := html.NewTokenizer(resp.Body)
-	tokenType := doc.Next()
-	for tokenType != html.ErrorToken {
-		token := doc.Token()
-		// we only care about starting elements
-		if tokenType == html.StartTagToken {
-			switch token.DataAtom {
-			case atom.A:
-				// we assume that <a> elements will provide us with all links
-				// go through the attributes and find the HREF one
-				for _, attr := range token.Attr {
-					if attr.Key == "href" {
-						if attr.Val != "" {
-							// there are three href cases
-							// * same domain, full URLs
-							// * same domain, relative path
-							// * external domain, full URLs
-							// let's find out what case this is
-							ur, err := url.Parse(attr.Val)
-							if err != nil {
-								break
-							}
-							// remove fragments
-							ur.Fragment = ""
-							if ur.Host == loc.Host {
-								// this is a same domain, full URL, we can use it
-								target.linkURLs[ur.String()]++
-							} else if ur.Host == "" {
-								// this is a same domain, relative path
-								ur.Host = loc.Host
-								ur.Scheme = loc.Scheme
-								target.linkURLs[ur.String()]++
-							}
-						}
-						break
-					}
-				}
-			case atom.Img, atom.Video, atom.Audio,
-				atom.Script, atom.Style, atom.Link:
-				// other elements can be used to extract asset URLs
-				// TODO(geoah) Complete list of asset elements and attributes
-				for _, attr := range token.Attr {
-					if attr.Key == "src" {
-						target.assetURLs[attr.Val]++
-					}
-					if attr.Key == "href" {
-						target.assetURLs[attr.Val]++
-					}
-				}
-			}
-			tokenType = doc.Next()
-			continue
-		}
-		tokenType = doc.Next()
-	}
-	resp.Body.Close()
 }

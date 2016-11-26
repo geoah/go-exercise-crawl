@@ -13,8 +13,8 @@ hostname and will attempt to identify all static assets and links for each page.
 * [x] Merge website & crawler
 * [x] Add worker pool instead of spawning everything in a go routine
 * [ ] Make worker pool common across multiple Crawl()s
-* [ ] Move link parser under a Parser interface [low]
-* [ ] Move HTTP downloader under a Getter interface [low]
+* [x] Move HTML parser under a Parser interface
+* [x] Move HTTP downloader under a Fetcher interface
 * [x] Add retry mechanism for failed GETs
 * [x] Add tests
 

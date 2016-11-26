@@ -18,6 +18,8 @@ type TestEndpoint struct {
 type CrawlerTestSuite struct {
 	suite.Suite
 	client     *http.Client
+	fetcher    Fetcher
+	parser     Parser
 	crawler    *Crawler
 	maxRetries int
 	endpoints  map[string]TestEndpoint
@@ -31,10 +33,9 @@ func (suite *CrawlerTestSuite) SetupTest() {
 	// init our client and crawler
 	suite.client = &http.Client{}
 	suite.maxRetries = 5
-	suite.crawler = &Crawler{
-		client:     suite.client,
-		maxRetries: suite.maxRetries,
-	}
+	suite.fetcher = NewFetcherHTTP(suite.client, suite.maxRetries)
+	suite.parser = NewParserHTML()
+	suite.crawler = New(suite.fetcher, suite.parser)
 	suite.endpoints = map[string]TestEndpoint{}
 
 	// create some fake endpoints
@@ -135,8 +136,8 @@ func (suite *CrawlerTestSuite) TestCrawlErrors() {
 		suite.Len(tgs, 1)
 
 		// and they should error
-		suite.Len(tgs[ep].GetLinkURLs(false), 0, tgs[ep].url.String())
-		suite.Equal(suite.maxRetries, tgs[ep].tries, tgs[ep].url.String())
+		suite.Len(tgs[ep].GetLinkURLs(false), 0, "links for "+tgs[ep].url.String())
+		suite.Equal(suite.maxRetries, tgs[ep].tries, "retries for "+tgs[ep].url.String())
 		suite.NotNil(tgs[ep].GetError(), tgs[ep].url.String())
 	}
 
