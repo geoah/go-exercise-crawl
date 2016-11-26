@@ -10,8 +10,14 @@ import (
 type Results struct {
 	sync.WaitGroup
 	sync.RWMutex
-	queue   chan *Target
-	results map[string]*Target
+	queue     chan *Target
+	processed chan *Target
+	results   map[string]*Target
+}
+
+// StreamTargets returns targets as soon as they have been processed
+func (r *Results) StreamTargets() chan *Target {
+	return r.processed
 }
 
 // GetTargets is just a safe method to make sure the processing has finished
@@ -50,8 +56,8 @@ func (r *Results) Enqueue(targetURL string) error {
 	// if not, create a new target
 	target := &Target{
 		url:       tURL,
-		AssetURLs: map[string]int{},
-		LinkURLs:  map[string]int{},
+		assetURLs: map[string]int{},
+		linkURLs:  map[string]int{},
 	}
 	r.results[nURL] = target
 

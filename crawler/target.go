@@ -14,8 +14,13 @@ type Target struct {
 	tries int
 	err   error
 
-	AssetURLs map[string]int
-	LinkURLs  map[string]int
+	assetURLs map[string]int
+	linkURLs  map[string]int
+}
+
+// GetURL returns URL
+func (t *Target) GetURL() *url.URL {
+	return t.url
 }
 
 // GetError return error
@@ -25,9 +30,9 @@ func (t *Target) GetError() error {
 
 // GetAssetURLs return asset URLs
 func (t *Target) GetAssetURLs(sorted bool) []string {
-	urls := make([]string, len(t.AssetURLs))
+	urls := make([]string, len(t.assetURLs))
 	i := 0
-	for url := range t.AssetURLs {
+	for url := range t.assetURLs {
 		urls[i] = url
 		i++
 	}
@@ -39,9 +44,9 @@ func (t *Target) GetAssetURLs(sorted bool) []string {
 
 // GetLinkURLs return link URLs
 func (t *Target) GetLinkURLs(sorted bool) []string {
-	urls := make([]string, len(t.LinkURLs))
+	urls := make([]string, len(t.linkURLs))
 	i := 0
-	for url := range t.LinkURLs {
+	for url := range t.linkURLs {
 		urls[i] = url
 		i++
 	}

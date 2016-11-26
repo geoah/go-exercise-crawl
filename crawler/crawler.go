@@ -35,13 +35,10 @@ func New(client *http.Client) *Crawler {
 func (c *Crawler) Crawl(targetURL string, workers int) (*Results, error) {
 	// initialize our results
 	results := &Results{
-		results: map[string]*Target{},
-		queue:   make(chan *Target, 100),
+		results:   map[string]*Target{},
+		queue:     make(chan *Target, 100),
+		processed: make(chan *Target, 100),
 	}
-
-	// TODO(geoah) Instead of Wait()ing in results.GetResults() maybe wait here?
-	// make sure we wait until everything is done
-	// defer results.Wait()
 
 	// enqueue our entrypoint url
 	if err := results.Enqueue(targetURL); err != nil {
@@ -57,6 +54,13 @@ func (c *Crawler) Crawl(targetURL string, workers int) (*Results, error) {
 	for w := 1; w <= workers; w++ {
 		go c.worker(w, results)
 	}
+
+	// when all is said and done, close everything up
+	go func(results *Results) {
+		results.GetTargets()
+		close(results.queue)
+		close(results.processed)
+	}(results)
 
 	return results, nil
 }
@@ -75,6 +79,7 @@ func (c *Crawler) worker(id int, results *Results) {
 			// if there is no error we can go through the found links and
 			// queue them for further processing
 			if target.err == nil {
+				results.processed <- target
 				for _, ntarget := range target.GetLinkURLs(true) {
 					results.Enqueue(ntarget)
 				}
@@ -164,12 +169,12 @@ func (c *Crawler) process(target *Target) {
 							ur.Fragment = ""
 							if ur.Host == loc.Host {
 								// this is a same domain, full URL, we can use it
-								target.LinkURLs[ur.String()]++
+								target.linkURLs[ur.String()]++
 							} else if ur.Host == "" {
 								// this is a same domain, relative path
 								ur.Host = loc.Host
 								ur.Scheme = loc.Scheme
-								target.LinkURLs[ur.String()]++
+								target.linkURLs[ur.String()]++
 							}
 						}
 						break
@@ -181,7 +186,7 @@ func (c *Crawler) process(target *Target) {
 				// TODO(geoah) Complete list of asset elements
 				for _, attr := range token.Attr {
 					if attr.Key == "src" {
-						target.AssetURLs[attr.Val]++
+						target.assetURLs[attr.Val]++
 					}
 				}
 			}

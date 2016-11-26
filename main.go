@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"runtime"
 
+	"time"
+
 	"github.com/geoah/go-crawl/crawler"
 )
 
@@ -13,10 +15,14 @@ func main() {
 	cr := crawler.New(cl)
 
 	nw := runtime.NumCPU()
+	now := time.Now()
 
+	// start crawling the website
 	res, _ := cr.Crawl("http://tomblomfield.com", nw)
-	for page, target := range res.GetTargets() {
-		fmt.Printf("\n=== %s ===========\n", page)
+
+	// we can either get targets as soon as they have been processed
+	for target := range res.StreamTargets() {
+		fmt.Printf("\n=== %s ===========\n", target.GetURL().String())
 		if target.GetError() != nil {
 			fmt.Printf("Error: Could not get page.\n")
 			continue
@@ -28,4 +34,9 @@ func main() {
 			fmt.Printf("Link: %s\n", url)
 		}
 	}
+
+	// or wait until we are done and get them all together
+	targets := res.GetTargets()
+	fmt.Printf("\n=== We fetched a total of %d pages using %d workers in %.2f seconds ===========",
+		len(targets), nw, time.Since(now).Seconds())
 }
