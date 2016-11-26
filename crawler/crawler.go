@@ -32,16 +32,16 @@ func New(client *http.Client) *Crawler {
 }
 
 // Crawl starts a recursive crawl of a site with a number of workers
-func (c *Crawler) Crawl(targetURL string, workers int) (*Results, error) {
-	// initialize our results
-	results := &Results{
-		results:   map[string]*Target{},
+func (c *Crawler) Crawl(targetURL string, workers int) (*Result, error) {
+	// initialize our result
+	result := &Result{
+		targets:   map[string]*Target{},
 		queue:     make(chan *Target, 100),
 		processed: make(chan *Target, 100),
 	}
 
 	// enqueue our entrypoint url
-	if err := results.Enqueue(targetURL); err != nil {
+	if err := result.Enqueue(targetURL); err != nil {
 		return nil, err
 	}
 
@@ -52,40 +52,40 @@ func (c *Crawler) Crawl(targetURL string, workers int) (*Results, error) {
 
 	// start our workers
 	for w := 1; w <= workers; w++ {
-		go c.worker(w, results)
+		go c.worker(w, result)
 	}
 
 	// when all is said and done, close everything up
-	go func(results *Results) {
-		results.GetTargets()
-		close(results.queue)
-		close(results.processed)
-	}(results)
+	go func(result *Result) {
+		result.GetTargets()
+		close(result.queue)
+		close(result.processed)
+	}(result)
 
-	return results, nil
+	return result, nil
 }
 
-func (c *Crawler) worker(id int, results *Results) {
-	for target := range results.queue {
-		go func(target *Target, results *Results) {
+func (c *Crawler) worker(id int, result *Result) {
+	for target := range result.queue {
+		go func(target *Target, result *Result) {
 			// process the target
 			c.process(target)
 			// if the url could not be processes and we can still retry
 			if target.err != nil && target.tries < c.maxRetries {
 				// re-add it to the end of the queue
-				results.Add(1)
-				results.queue <- target
+				result.Add(1)
+				result.queue <- target
 			}
 			// if there is no error we can go through the found links and
 			// queue them for further processing
 			if target.err == nil {
-				results.processed <- target
+				result.processed <- target
 				for _, ntarget := range target.GetLinkURLs(true) {
-					results.Enqueue(ntarget)
+					result.Enqueue(ntarget)
 				}
 			}
-			results.Done()
-		}(target, results)
+			result.Done()
+		}(target, result)
 	}
 }
 

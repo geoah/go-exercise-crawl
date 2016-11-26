@@ -5,7 +5,7 @@ import (
 	"sort"
 )
 
-// Target is each of the URLs we are trying to retrieve
+// Target is a single page (URL) we are trying to retrieve
 // In case we weren't able to fetch or parse the page, an error will be present
 // Assets and Links are represented as maps using their URL for keys
 // and the times they appear in the page as value.

@@ -6,31 +6,31 @@ import (
 	"sync"
 )
 
-// Results from a complete crawl of a site
-type Results struct {
+// Result is a complete crawl of a site
+type Result struct {
 	sync.WaitGroup
 	sync.RWMutex
 	queue     chan *Target
 	processed chan *Target
-	results   map[string]*Target
+	targets   map[string]*Target
 }
 
 // StreamTargets returns targets as soon as they have been processed
-func (r *Results) StreamTargets() chan *Target {
+func (r *Result) StreamTargets() chan *Target {
 	return r.processed
 }
 
 // GetTargets is just a safe method to make sure the processing has finished
 // before the targets can be returned.
-// Since Crawl() doesn't wait for the results to be gathered, this does.
-func (r *Results) GetTargets() map[string]*Target {
+// Since Crawl() doesn't wait for the result to be gathered, this does.
+func (r *Result) GetTargets() map[string]*Target {
 	r.Wait()
-	return r.results
+	return r.targets
 }
 
 // Enqueue cheks if we have already processed a URL and if not
 // adds it to the queue to be processed by our workers.
-func (r *Results) Enqueue(targetURL string) error {
+func (r *Result) Enqueue(targetURL string) error {
 	// validate that the given target is a URL we can use
 	tURL, err := url.Parse(targetURL)
 	if err != nil {
@@ -49,7 +49,7 @@ func (r *Results) Enqueue(targetURL string) error {
 
 	// check if we have already processed this target
 	r.Lock()
-	if _, exists := r.results[nURL]; exists {
+	if _, exists := r.targets[nURL]; exists {
 		r.Unlock()
 		return nil
 	}
@@ -59,7 +59,7 @@ func (r *Results) Enqueue(targetURL string) error {
 		assetURLs: map[string]int{},
 		linkURLs:  map[string]int{},
 	}
-	r.results[nURL] = target
+	r.targets[nURL] = target
 
 	// and add it to the queue
 	r.Add(1)
