@@ -2,9 +2,10 @@ package crawler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
+	"runtime"
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
@@ -17,53 +18,60 @@ var (
 
 // Crawler is basically an HTTP scraper
 type Crawler struct {
-	client        *http.Client
-	crawlExternal bool
+	client  *http.Client
+	results map[string]*Result
+	queue   chan string
 }
 
-// New creates a new Crawler from an HTTP client
-func New(client *http.Client, crawlExternal bool) *Crawler {
-	return &Crawler{client, crawlExternal}
-}
-
-// Result results from a crawl
-// Assets and Links are represented as maps using their URL for keys
-// and the times they appear in the page as value.
-type Result struct {
-	AssetURLs map[string]int
-	LinkURLs  map[string]int
-}
-
-// GetAssetURLs -
-func (r *Result) GetAssetURLs(sorted bool) []string {
-	urls := make([]string, len(r.AssetURLs))
-	i := 0
-	for url := range r.AssetURLs {
-		urls[i] = url
-		i++
+// New creates a new Crawler from an HTTP client.
+func New(client *http.Client) *Crawler {
+	return &Crawler{
+		client: client,
 	}
-	if sorted {
-		sort.Strings(urls)
-	}
-	return urls
 }
 
-// GetLinkURLs -
-func (r *Result) GetLinkURLs(sorted bool) []string {
-	urls := make([]string, len(r.LinkURLs))
-	i := 0
-	for url := range r.LinkURLs {
-		urls[i] = url
-		i++
+func (c *Crawler) worker(id int, results *Results) {
+	for target := range results.queue {
+		fmt.Println("worker", id, "processing url", target)
+		go func(target string, results *Results) {
+			result, _ := c.process(target)
+			results.Lock()
+			results.results[target] = result
+			results.Unlock()
+			for _, ntarget := range result.GetLinkURLs(true) {
+				results.Enqueue(ntarget)
+			}
+			results.Done()
+		}(target, results)
 	}
-	if sorted {
-		sort.Strings(urls)
-	}
-	return urls
 }
 
-// Crawl -
-func (c *Crawler) Crawl(target string) (*Result, error) {
+// Crawl starts a recursive crawl of a site
+func (c *Crawler) Crawl(target string) (*Results, error) {
+	// initialize our results
+	results := &Results{
+		results: map[string]*Result{},
+		queue:   make(chan string, 100),
+	}
+
+	// TODO(geoah) Instead of Wait()ing in GetResults() maybe wait here?
+	// make sure we wait until everything is done
+	// defer results.Wait()
+
+	// enqueue our entrypint url
+	results.Enqueue(target)
+
+	// start our workers
+	nw := runtime.NumCPU()
+	for w := 1; w <= nw; w++ {
+		go c.worker(w, results)
+	}
+
+	return results, nil
+}
+
+// process -
+func (c *Crawler) process(target string) (*Result, error) {
 	// validate that the given target is actually a URL
 	tURL, err := url.Parse(target)
 	if err != nil {
@@ -128,10 +136,11 @@ func (c *Crawler) Crawl(target string) (*Result, error) {
 								ur.Host = loc.Host
 								ur.Scheme = loc.Scheme
 								result.LinkURLs[ur.String()]++
-							} else if c.crawlExternal {
-								// these should all be external domains
-								result.LinkURLs[ur.String()]++
 							}
+							//  else if c.crawlExternal {
+							// 	// these should all be external domains
+							// 	result.LinkURLs[ur.String()]++
+							// }
 						}
 						break
 					}

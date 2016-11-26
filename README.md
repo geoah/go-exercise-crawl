@@ -7,8 +7,8 @@ hostname and will attempt to identify all static assets and links for each page.
 
 ## To do
 
-* [ ] Merge website & crawler
-* [ ] Add worker pool instead of spawning everything in a go routine
+* [x] Merge website & crawler
+* [x] Add worker pool instead of spawning everything in a go routine
 * [ ] Move link parser under a Parser interface [low]
 * [ ] Move HTTP downloader under a Getter interface [low]
 * [ ] Add retry mechanism for failed GETs
