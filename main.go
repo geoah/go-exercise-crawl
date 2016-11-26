@@ -14,15 +14,17 @@ func main() {
 	cl := &http.Client{}
 	cr := crawler.New(cl)
 
-	nw := runtime.NumCPU()
+	count := 0
 	now := time.Now()
+	nw := runtime.NumCPU()
 
 	// start crawling the website
 	res, _ := cr.Crawl("http://tomblomfield.com", nw)
 
-	// we can either get targets as soon as they have been processed
+	// we can start getting targets as soon as they have been processed
 	for target := range res.StreamTargets() {
 		fmt.Printf("\n=== %s ===========\n", target.GetURL().String())
+		count++
 		if target.GetError() != nil {
 			fmt.Printf("Error: Could not get page.\n")
 			continue
@@ -35,8 +37,6 @@ func main() {
 		}
 	}
 
-	// or wait until we are done and get them all together
-	targets := res.GetTargets()
 	fmt.Printf("\n=== We fetched a total of %d pages using %d workers in %.2f seconds ===========",
-		len(targets), nw, time.Since(now).Seconds())
+		count, nw, time.Since(now).Seconds())
 }

@@ -58,6 +58,14 @@ func (suite *CrawlerTestSuite) SetupTest() {
 	}
 }
 
+func (suite *CrawlerTestSuite) gatherTargets(result *Result) map[string]*Target {
+	targets := map[string]*Target{}
+	for target := range result.StreamTargets() {
+		targets[target.GetURL().String()] = target
+	}
+	return targets
+}
+
 func (suite *CrawlerTestSuite) TestCrawlInvalidURL() {
 	// crawl an invalid endpoint
 	res, err := suite.crawler.Crawl("not a valid url", 1)
@@ -73,7 +81,7 @@ func (suite *CrawlerTestSuite) TestCrawlRecursive() {
 	suite.Nil(err)
 
 	// we should have 5 targets (/, /a, /b, /c, /404 with /404 having errored)
-	tgs := res.GetTargets()
+	tgs := suite.gatherTargets(res)
 	suite.Len(tgs, 5)
 
 	suite.Len(tgs["http://test/"].GetLinkURLs(false), 2)
@@ -99,7 +107,7 @@ func (suite *CrawlerTestSuite) TestCrawlLoop() {
 	suite.Nil(err)
 
 	// we should have 1 targets (/loop)
-	tgs := res.GetTargets()
+	tgs := suite.gatherTargets(res)
 	suite.Len(tgs, 1)
 
 	suite.Len(tgs["http://test/loop"].GetLinkURLs(false), 1)
@@ -123,7 +131,7 @@ func (suite *CrawlerTestSuite) TestCrawlErrors() {
 		suite.Nil(err)
 
 		// we should have 1 target
-		tgs := res.GetTargets()
+		tgs := suite.gatherTargets(res)
 		suite.Len(tgs, 1)
 
 		// and they should error
@@ -142,7 +150,7 @@ func (suite *CrawlerTestSuite) TestCrawlErrors() {
 		suite.Nil(err)
 
 		// we should have 1 target
-		tgs := res.GetTargets()
+		tgs := suite.gatherTargets(res)
 		suite.Len(tgs, 1)
 
 		// and they should error

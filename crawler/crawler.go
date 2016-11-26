@@ -35,9 +35,9 @@ func New(client *http.Client) *Crawler {
 func (c *Crawler) Crawl(targetURL string, workers int) (*Result, error) {
 	// initialize our result
 	result := &Result{
-		targets:   map[string]*Target{},
-		queue:     make(chan *Target, 100),
-		processed: make(chan *Target, 100),
+		urls:    map[string]bool{},
+		queue:   make(chan *Target, 100),
+		targets: make(chan *Target, 100),
 	}
 
 	// enqueue our entrypoint url
@@ -57,9 +57,9 @@ func (c *Crawler) Crawl(targetURL string, workers int) (*Result, error) {
 
 	// when all is said and done, close everything up
 	go func(result *Result) {
-		result.GetTargets()
+		result.Wait()
 		close(result.queue)
-		close(result.processed)
+		close(result.targets)
 	}(result)
 
 	return result, nil
@@ -79,11 +79,11 @@ func (c *Crawler) worker(id int, result *Result) {
 			// if there is no error we can go through the found links and
 			// queue them for further processing
 			if target.err == nil {
-				result.processed <- target
 				for _, ntarget := range target.GetLinkURLs(true) {
 					result.Enqueue(ntarget)
 				}
 			}
+			result.targets <- target
 			result.Done()
 		}(target, result)
 	}

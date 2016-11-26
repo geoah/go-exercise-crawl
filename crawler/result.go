@@ -10,21 +10,13 @@ import (
 type Result struct {
 	sync.WaitGroup
 	sync.RWMutex
-	queue     chan *Target
-	processed chan *Target
-	targets   map[string]*Target
+	queue   chan *Target
+	targets chan *Target
+	urls    map[string]bool
 }
 
 // StreamTargets returns targets as soon as they have been processed
 func (r *Result) StreamTargets() chan *Target {
-	return r.processed
-}
-
-// GetTargets is just a safe method to make sure the processing has finished
-// before the targets can be returned.
-// Since Crawl() doesn't wait for the result to be gathered, this does.
-func (r *Result) GetTargets() map[string]*Target {
-	r.Wait()
 	return r.targets
 }
 
@@ -49,7 +41,7 @@ func (r *Result) Enqueue(targetURL string) error {
 
 	// check if we have already processed this target
 	r.Lock()
-	if _, exists := r.targets[nURL]; exists {
+	if _, exists := r.urls[nURL]; exists {
 		r.Unlock()
 		return nil
 	}
@@ -59,7 +51,7 @@ func (r *Result) Enqueue(targetURL string) error {
 		assetURLs: map[string]int{},
 		linkURLs:  map[string]int{},
 	}
-	r.targets[nURL] = target
+	r.urls[nURL] = true
 
 	// and add it to the queue
 	r.Add(1)
