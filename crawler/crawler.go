@@ -183,9 +183,12 @@ func (c *Crawler) process(target *Target) {
 			case atom.Img, atom.Video, atom.Audio,
 				atom.Script, atom.Style, atom.Link:
 				// other elements can be used to extract asset URLs
-				// TODO(geoah) Complete list of asset elements
+				// TODO(geoah) Complete list of asset elements and attributes
 				for _, attr := range token.Attr {
 					if attr.Key == "src" {
+						target.assetURLs[attr.Val]++
+					}
+					if attr.Key == "href" {
 						target.assetURLs[attr.Val]++
 					}
 				}
