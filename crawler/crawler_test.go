@@ -117,7 +117,7 @@ func (suite *CrawlerTestSuite) TestCrawlErrors() {
 	for _, code := range retryCodes {
 		ep := fmt.Sprintf("http://test/%d", code)
 
-		// crawl a valid endpoints that retuns an error code
+		// crawl a valid endpoints that returns an error code
 		res, err := suite.crawler.Crawl(ep, 1)
 		suite.NotNil(res)
 		suite.Nil(err)
@@ -136,7 +136,7 @@ func (suite *CrawlerTestSuite) TestCrawlErrors() {
 	for _, code := range failCodes {
 		ep := fmt.Sprintf("http://test/%d", code)
 
-		// crawl a valid endpoints that retuns an error code
+		// crawl a valid endpoints that returns an error code
 		res, err := suite.crawler.Crawl(ep, 1)
 		suite.NotNil(res)
 		suite.Nil(err)

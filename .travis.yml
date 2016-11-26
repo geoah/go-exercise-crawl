@@ -1,0 +1,13 @@
+language: go
+
+go:
+  - 1.7
+
+before_script:
+  - wget https://github.com/Masterminds/glide/releases/download/v0.12.3/glide-v0.12.3-darwin-amd64.tar.gz -O /tmp/glide-v0.12.3-darwin-amd64.tar.gz
+  - tar -xvf /tmp/glide-v0.12.3-darwin-amd64.tar.gz
+  - export PATH=$PATH:$PWD/darwin-amd64/
+
+script:
+ - go test -v ./...
+ - go run *.go

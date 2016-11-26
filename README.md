@@ -1,5 +1,8 @@
 # go-crawl
 
+[![Build Status](https://travis-ci.org/geoah/go-crawl.svg?branch=master)](https://travis-ci.org/geoah/go-crawl) 
+[![Go Report Card](https://goreportcard.com/badge/github.com/geoah/go-crawl)](https://goreportcard.com/report/github.com/geoah/go-crawl)
+
 A very simple single domain crawler.
 
 Given a URL, it will recursively go through all the pages under the original
