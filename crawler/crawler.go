@@ -64,12 +64,13 @@ func (c *Crawler) Crawl(targetURL string, workers int) (*Results, error) {
 func (c *Crawler) worker(id int, results *Results) {
 	for target := range results.queue {
 		go func(target *Target, results *Results) {
+			// process the target
 			c.process(target)
-			// TODO(geoah) It might be better to re-add the targets to the
-			// queue instead of instantly retrying
 			// if the url could not be processes and we can still retry
-			for target.err != nil && target.tries < c.maxRetries {
-				c.process(target)
+			if target.err != nil && target.tries < c.maxRetries {
+				// re-add it to the end of the queue
+				results.Add(1)
+				results.queue <- target
 			}
 			// if there is no error we can go through the found links and
 			// queue them for further processing
