@@ -34,7 +34,7 @@ func (suite *CrawlerTestSuite) SetupTest() {
 	suite.client = &http.Client{}
 	suite.maxRetries = 5
 	suite.fetcher = NewFetcherHTTP(suite.client, suite.maxRetries)
-	suite.parser = NewParserHTML()
+	suite.parser = NewParserHTML(false)
 	suite.crawler = New(suite.fetcher, suite.parser)
 	suite.endpoints = map[string]TestEndpoint{}
 
