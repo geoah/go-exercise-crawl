@@ -16,7 +16,10 @@ hostname and will attempt to identify all static assets and links for each page.
 * [x] Move HTML parser under a Parser interface
 * [x] Move HTTP downloader under a Fetcher interface
 * [x] Add retry mechanism for failed GETs
-* [x] Add tests
+* [ ] Remove assets from target, and move them to a more generic map where parsers can add anything they want
+* [x] Add integration tests
+* [ ] Add unit tests for http fetcher
+* [ ] Add unit tests for html parser
 
 ## Known issues
 
