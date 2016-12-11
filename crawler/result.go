@@ -1,9 +1,6 @@
 package crawler
 
-import (
-	"sync"
-	"time"
-)
+import "sync"
 
 // Result is a complete crawl of a site
 type Result struct {
@@ -20,14 +17,9 @@ type Result struct {
 // re-added to the queue with an error where Process will check if
 // it should retry or give up.
 func (r *Result) Process() {
-	// make sure than when all is said and Done we close everything up
-	go func(r *Result) {
-		time.Sleep(time.Millisecond * 100)
-		r.Wait()
-		close(r.queue)
-		close(r.jobs)
-		close(r.results)
-	}(r)
+	// TODO(geoah) This is a hack to only wait and close channels after
+	// at we have 1 item in the waitgroup.
+	dc := false
 
 	// now we can go through the queue as targets come in
 	for target := range r.queue {
@@ -70,10 +62,16 @@ func (r *Result) Process() {
 
 		// and finally push it to the queue to be processed
 		r.jobs <- target
-	}
-}
 
-// StreamTargets returns targets as soon as they have been processed
-func (r *Result) StreamTargets() chan *Target {
-	return r.results
+		// TODO(geoah) Need a better way to close channels
+		if dc == false {
+			dc = true
+			go func(r *Result) {
+				r.Wait()
+				close(r.queue)
+				close(r.jobs)
+				close(r.results)
+			}(r)
+		}
+	}
 }

@@ -38,7 +38,7 @@ func New(fetcher Fetcher, parser Parser) *Crawler {
 // need fetching, they will be added to the queue as well.
 // As soon as a link has been parsed, it will be pushed to the `result.results`
 // channel. After we are done will all possible links, the channel will close.
-func (c *Crawler) Crawl(targetURL string, workers int) (*Result, error) {
+func (c *Crawler) Crawl(targetURL string, workers int) (chan *Target, error) {
 	// initialize our result
 	result := &Result{
 		urls:    map[string]bool{},
@@ -69,7 +69,7 @@ func (c *Crawler) Crawl(targetURL string, workers int) (*Result, error) {
 		go c.worker(result.queue, result.jobs)
 	}
 
-	return result, nil
+	return result.results, nil
 }
 
 func (c *Crawler) worker(queue, jobs chan *Target) {

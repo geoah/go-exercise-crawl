@@ -27,7 +27,7 @@ func main() {
 	}
 
 	// we can start getting targets as soon as they have been processed
-	for target := range res.StreamTargets() {
+	for target := range res {
 		fmt.Printf("\n=== %s ===========\n", target.GetURL().String())
 		count++
 		if target.GetError() != nil {
