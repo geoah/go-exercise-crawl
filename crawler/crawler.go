@@ -36,20 +36,28 @@ func New(fetcher Fetcher, parser Parser) *Crawler {
 // targetURL to the queue to be fetched and parsed.
 // Once the targetURL has been parsed, if there are additional links that
 // need fetching, they will be added to the queue as well.
-// As soon as a link has been parsed, it will be pushed to the `result.targets`
+// As soon as a link has been parsed, it will be pushed to the `result.results`
 // channel. After we are done will all possible links, the channel will close.
 func (c *Crawler) Crawl(targetURL string, workers int) (*Result, error) {
 	// initialize our result
 	result := &Result{
 		urls:    map[string]bool{},
 		queue:   make(chan *Target, 100),
-		targets: make(chan *Target, 100),
+		jobs:    make(chan *Target, 100),
+		results: make(chan *Target, 100),
 	}
 
-	// enqueue our entrypoint url
-	if err := result.Enqueue(targetURL); err != nil {
+	// create a target for our entrypoint
+	tgt, err := NewTarget(targetURL)
+	if err != nil {
 		return nil, err
 	}
+
+	// start our queue/queue processing
+	go result.Process()
+
+	// add our entrypoint url to our queue
+	result.queue <- tgt
 
 	// make sure we have some workers
 	if workers == 0 {
@@ -58,51 +66,40 @@ func (c *Crawler) Crawl(targetURL string, workers int) (*Result, error) {
 
 	// start our workers
 	for w := 1; w <= workers; w++ {
-		go c.worker(result)
+		go c.worker(result.queue, result.jobs)
 	}
-
-	// when all is said and done, close everything up
-	go func(result *Result) {
-		result.Wait()
-		close(result.queue)
-		close(result.targets)
-	}(result)
 
 	return result, nil
 }
 
-func (c *Crawler) worker(result *Result) {
+func (c *Crawler) worker(queue, jobs chan *Target) {
 	// go through our target queue
-	for target := range result.queue {
-		go func(target *Target, result *Result) {
-			// make sure that we remove it from the waitgroup when all is done
-			defer result.Done()
-			// try to fetch the content of target
-			body, err := c.fetcher.Fetch(target)
-			// and if something didn't go as expected
-			if err != nil {
-				// check if we should retry
-				if ferr, ok := err.(FetcherError); ok && ferr.ShouldRetry() {
-					// and if so, re-add it to the end of the queue
-					result.Add(1)
-					result.queue <- target
-					return
+	for target := range jobs {
+		// make sure that we remove it from the waitgroup when all is done
+		// try to fetch the content of target
+		body, err := c.fetcher.Fetch(target)
+		// and if something didn't go as expected
+		if err != nil {
+			target.err = err
+			queue <- target
+			continue
+		}
+		// if everything was ok, we can try to parse the content
+		// we currently don't really handle the parser failing
+		// TODO(geoah) Maybe re-try parsing if it fails?
+		if err = c.parser.Parse(target, body); err == nil {
+			// if there are links add them to the queue
+			for _, nURL := range target.GetLinkURLs(true) {
+				ntgt, err := NewTarget(nURL)
+				if err != nil {
+					ntgt.err = err
 				}
-				// else just push it to targets and let them deal with the error
-				result.targets <- target
-				return
+				queue <- ntgt
+				continue
 			}
-			// if everything was ok, we can try to parse the content
-			// we currently don't really handle the parser failing
-			// TODO(geoah) Maybe re-try parsing if it fails?
-			if err = c.parser.Parse(target, body); err == nil {
-				// if there are links add them to the queue
-				for _, ntarget := range target.GetLinkURLs(true) {
-					result.Enqueue(ntarget)
-				}
-			}
-			// push the target to the targets channel
-			result.targets <- target
-		}(target, result)
+		}
+		// mark target as done
+		target.done = true
+		queue <- target
 	}
 }

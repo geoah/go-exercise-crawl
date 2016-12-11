@@ -21,7 +21,10 @@ func main() {
 	nw := runtime.NumCPU()
 
 	// start crawling the website
-	res, _ := cr.Crawl("http://tomblomfield.com", nw)
+	res, err := cr.Crawl("http://tomblomfield.com", nw)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	// we can start getting targets as soon as they have been processed
 	for target := range res.StreamTargets() {
@@ -39,6 +42,7 @@ func main() {
 		}
 	}
 
-	fmt.Printf("\n=== We fetched a total of %d pages using %d workers in %.2f seconds ===========",
+	fmt.Printf("\n=== We fetched a total of %d pages using %d workers in "+
+		"%.2f seconds ===========",
 		count, nw, time.Since(now).Seconds())
 }
