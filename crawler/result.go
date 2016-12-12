@@ -31,30 +31,31 @@ func (r *Result) Process() {
 			continue
 		}
 
-		// TODO(geoah) Refactor flow
+		// TODO(geoah) Simplify flow
 
-		// else get the normalized url,
+		// get the normalized url
 		sURL := target.String()
-		// check if we have already processed this target
+		// check if we have already processed it
 		if _, exists := r.urls[sURL]; exists {
-			// and is there was an error check if we should retry
+			// if the target has an error it means that we already tried to
+			// process it and failed
 			if target.err != nil {
-				if ferr, ok := target.err.(FetcherError); ok && ferr.ShouldRetry() {
-					// and if so, re-add it to the jobs queue
-				} else {
-					// else just push it to targets and let them deal with the error
+				// check if the error was retriable
+				if ferr, ok := target.err.(FetcherError); ok && ferr.ShouldRetry() == false {
+					// if the error is not retriable, mark the target as done,
+					// push it to the results channel, and move on.
 					target.done = true
 					r.results <- target
 					r.Done()
 					continue
 				}
 			} else {
-				// if the target has no error and we have already processed
-				// this URL, we shouldn't re-add to the queue.
+				// if we get a target that has already been processed
+				// and there is no error, we shouldn't re-add to the queue.
 				continue
 			}
 		} else {
-			// if not, mark it as processed
+			// if the target has never been processed, mark it as such
 			r.urls[sURL] = true
 			// bump the waitgroup
 			r.Add(1)
@@ -63,7 +64,7 @@ func (r *Result) Process() {
 		// and finally push it to the queue to be processed
 		r.jobs <- target
 
-		// TODO(geoah) Need a better way to close channels
+		// TODO(geoah) // HACK Need a better way to close channels
 		if dc == false {
 			dc = true
 			go func(r *Result) {

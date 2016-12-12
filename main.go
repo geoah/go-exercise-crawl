@@ -21,13 +21,13 @@ func main() {
 	nw := runtime.NumCPU()
 
 	// start crawling the website
-	res, err := cr.Crawl("http://tomblomfield.com", nw)
+	results, err := cr.Crawl("http://tomblomfield.com", nw)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	// we can start getting targets as soon as they have been processed
-	for target := range res {
+	for target := range results {
 		fmt.Printf("\n=== %s ===========\n", target.GetURL().String())
 		count++
 		if target.GetError() != nil {

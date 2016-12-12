@@ -32,10 +32,8 @@ func New(fetcher Fetcher, parser Parser) *Crawler {
 	}
 }
 
-// Crawl starts starts a given number of worker go routines, and adds the
-// targetURL to the queue to be fetched and parsed.
-// Once the targetURL has been parsed, if there are additional links that
-// need fetching, they will be added to the queue as well.
+// Crawl will start from a given URL, and using a given amount of workers
+// will recursively fetch and parse the found pages.
 // As soon as a link has been parsed, it will be pushed to the `result.results`
 // channel. After we are done will all possible links, the channel will close.
 func (c *Crawler) Crawl(targetURL string, workers int) (chan *Target, error) {
