@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
-
 	"time"
 
-	"github.com/geoah/go-crawl/crawler"
+	crawler "github.com/geoah/go-crawl"
 )
 
 func main() {

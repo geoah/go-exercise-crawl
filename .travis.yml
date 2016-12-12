@@ -10,4 +10,4 @@ before_script:
 
 script:
  - go test -v ./...
- - go run *.go
+ - go run examples/*.go
