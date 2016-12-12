@@ -20,7 +20,7 @@ func main() {
 	nw := runtime.NumCPU()
 
 	// start crawling the website
-	results, err := cr.Crawl("http://tomd1ddblomfield.com", nw)
+	results, err := cr.Crawl("http://tomblomfield.com", nw)
 	if err != nil {
 		log.Fatal("Something went really wrong: ", err)
 	}
