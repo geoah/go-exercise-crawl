@@ -59,9 +59,9 @@ func (suite *CrawlerTestSuite) SetupTest() {
 	}
 }
 
-func (suite *CrawlerTestSuite) gatherTargets(result *Result) map[string]*Target {
+func (suite *CrawlerTestSuite) gatherTargets(results chan *Target) map[string]*Target {
 	targets := map[string]*Target{}
-	for target := range result.StreamTargets() {
+	for target := range results {
 		targets[target.GetURL().String()] = target
 	}
 	return targets

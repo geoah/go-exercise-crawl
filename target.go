@@ -3,6 +3,7 @@ package crawler
 import (
 	"net/url"
 	"sort"
+	"strings"
 )
 
 // Target is a single page (URL) we are trying to retrieve
@@ -13,9 +14,41 @@ type Target struct {
 	url   *url.URL
 	tries int
 	err   error
+	done  bool
 
 	assetURLs map[string]int
 	linkURLs  map[string]int
+}
+
+// NewTarget -
+func NewTarget(targetURL string) (*Target, error) {
+	// validate that the given target is a URL we can use
+	tURL, err := url.Parse(targetURL)
+	if err != nil {
+		return nil, ErrInvalidURL
+	}
+	if tURL.Host == "" || tURL.Scheme == "" {
+		return nil, ErrInvalidURL
+	}
+
+	// normalize URL
+	// TODO(geoah) Need better URL normalization
+	tURL.Scheme = strings.ToLower(tURL.Scheme)
+	tURL.Host = strings.ToLower(tURL.Host)
+	tURL.Fragment = ""
+
+	tgt := &Target{
+		url:       tURL,
+		assetURLs: map[string]int{},
+		linkURLs:  map[string]int{},
+	}
+
+	return tgt, nil
+}
+
+// String -
+func (t *Target) String() string {
+	return t.url.String()
 }
 
 // GetURL returns URL
